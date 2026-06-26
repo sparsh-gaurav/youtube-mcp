@@ -14,6 +14,9 @@ dependencies = [
     "youtube-transcript-api>=0.6.0,<2.0.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
+    "yt-dlp>=2024.0.0",
+    "openai-whisper",
+    "static-ffmpeg>=2.1",
 ]
 
 [project.optional-dependencies]

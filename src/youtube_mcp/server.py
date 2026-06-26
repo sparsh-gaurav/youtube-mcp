@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 from .api import YouTubeAPI
-from .models import TranscriptSegment, VideoMetadata
+from .models import TranscriptSegment, VideoMetadata, VideoSearchResult, WhisperTranscript
 from .transcript import TranscriptFetcher
+from .whisper import WhisperTranscriber
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ if not _api_key:
 
 _youtube = YouTubeAPI(_api_key)
 _transcript = TranscriptFetcher()
+_whisper = WhisperTranscriber("base")
 
 mcp = FastMCP("youtube")
 
@@ -34,6 +36,37 @@ def get_transcript(video_id: str, language: str | None = None) -> list[Transcrip
         language: BCP-47 language code (e.g. 'en', 'fr'). Defaults to first available.
     """
     return _transcript.get_transcript(video_id, language)
+
+
+@mcp.tool()
+def search_videos(
+    query: str,
+    max_results: int = 5,
+    language: str | None = None,
+    order: str = "date",
+) -> list[VideoSearchResult]:
+    """Search YouTube videos by keyword, newest first.
+
+    Args:
+        query: Search query string.
+        max_results: Number of results to return (1–50, default 5).
+        language: BCP-47 language hint for results (e.g. 'en', 'ur'). Optional.
+        order: Sort order — date (default), relevance, viewCount, rating.
+    """
+    return _youtube.search_videos(query, max_results, language, order)
+
+
+@mcp.tool()
+def transcribe_video(video_id: str, language: str | None = None) -> WhisperTranscript:
+    """Download audio and transcribe a YouTube video using local Whisper model.
+
+    Works even when YouTube captions are unavailable. Runs entirely on-machine — no API key required.
+
+    Args:
+        video_id: YouTube video ID.
+        language: BCP-47 language code hint (e.g. 'en', 'fr'). Auto-detected if omitted.
+    """
+    return _whisper.transcribe(video_id, language)
 
 
 if __name__ == "__main__":
