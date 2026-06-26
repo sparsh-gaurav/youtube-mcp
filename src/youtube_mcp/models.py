@@ -17,3 +17,24 @@ class TranscriptSegment(BaseModel):
     start: float
     duration: float
     text: str
+
+
+class VideoSearchResult(BaseModel):
+    video_id: str
+    title: str
+    description: str
+    channel_title: str
+    published_at: str
+    thumbnail_url: str
+
+
+class WhisperSegment(BaseModel):
+    start: float
+    end: float
+    text: str
+
+
+class WhisperTranscript(BaseModel):
+    video_id: str
+    text: str
+    segments: list[WhisperSegment]
