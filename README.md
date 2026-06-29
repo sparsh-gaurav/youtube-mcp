@@ -1,6 +1,6 @@
 # youtube-mcp
 
-MCP server for YouTube. Exposes four tools to any MCP client (Claude Desktop, etc.):
+MCP server for YouTube. Exposes five tools to any MCP client (Claude Desktop, etc.):
 
 | Tool | What it does |
 |---|---|
@@ -8,6 +8,7 @@ MCP server for YouTube. Exposes four tools to any MCP client (Claude Desktop, et
 | `get_transcript` | Fetch timestamped caption segments (YouTube captions) |
 | `search_videos` | Search YouTube by keyword, ordered by date or relevance |
 | `transcribe_video` | Download audio and transcribe locally using Whisper — works when captions are unavailable, no extra API keys |
+| `transcribe_video_sarvam` | Download audio and transcribe via Sarvam AI's Saaras API — alternative to Whisper, strong for Indian languages, requires `SARVAM_API_KEY` |
 
 > **Zero system dependencies.** `ffmpeg` is bundled via `static-ffmpeg` and downloaded automatically on first use. No Homebrew, no manual installs.
 
@@ -33,6 +34,7 @@ pip install -e ".[dev]"
 ```bash
 cp .env.example .env
 # edit .env and paste your YOUTUBE_API_KEY
+# optionally add SARVAM_API_KEY to enable transcribe_video_sarvam
 ```
 
 ### 4. Run tests
@@ -145,6 +147,22 @@ Each `WhisperSegment`:
 
 ---
 
+### `transcribe_video_sarvam(video_id: str, language: str | None = None) -> SarvamTranscript`
+
+Downloads audio and transcribes it via Sarvam AI's Saaras speech-to-text API. Alternative to local Whisper — strong for Indian languages. Requires `SARVAM_API_KEY`.
+
+> **30-second limit.** Sarvam's synchronous Saaras API only accepts audio up to 30 seconds — longer videos return a 400 error. Use `transcribe_video` (Whisper) for anything longer.
+
+| Field | Type | Description |
+|---|---|---|
+| `video_id` | str | YouTube video ID |
+| `text` | str | Transcribed text |
+| `language_code` | str \| None | Detected/used language code, if returned by the API |
+
+`language`: BCP-47 hint (e.g. `"hi"`, `"en"`). Auto-detected if omitted.
+
+---
+
 ## Project structure
 
 ```
@@ -153,9 +171,11 @@ src/youtube_mcp/
   api.py          # YouTube Data API v3 wrapper (get_video, search_videos)
   transcript.py   # youtube-transcript-api wrapper (get_transcript)
   whisper.py      # yt-dlp + local Whisper transcriber (transcribe_video)
+  sarvam.py       # yt-dlp + Sarvam Saaras API transcriber (transcribe_video_sarvam)
   models.py       # Pydantic models
 tests/
   test_api.py
   test_transcript.py
   test_whisper.py
+  test_sarvam.py
 ```
