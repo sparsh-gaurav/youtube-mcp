@@ -92,6 +92,7 @@ def transcribe_video(
         provider="whisper",
         text=result.text,
         segments=result.segments,
+        language_code=result.language_code,
     )
 
 

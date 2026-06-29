@@ -57,6 +57,7 @@ class WhisperTranscriber:
                 video_id=video_id,
                 text=output["text"],
                 segments=segments,
+                language_code=output.get("language"),
             )
         finally:
             for f in glob.glob(os.path.join(tmp_dir, "*")):

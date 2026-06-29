@@ -139,8 +139,8 @@ Downloads audio and transcribes it. Works even when YouTube captions are unavail
 | `video_id` | str | YouTube video ID |
 | `provider` | str | Which backend produced this transcript (`"whisper"` or `"sarvam"`) |
 | `text` | str | Full transcript text |
-| `segments` | list[WhisperSegment] \| None | Timestamped segments (Whisper only; `None` for Sarvam) |
-| `language_code` | str \| None | Detected/used language code (Sarvam only; `None` for Whisper) |
+| `segments` | list[WhisperSegment] \| None | Timestamped segments — only available from Whisper; `None` for Sarvam, which doesn't return per-segment timing |
+| `language_code` | str \| None | Detected language code — populated by both providers |
 
 Each `WhisperSegment`:
 
