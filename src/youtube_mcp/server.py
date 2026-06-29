@@ -1,10 +1,11 @@
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 from .api import YouTubeAPI
-from .models import SarvamTranscript, TranscriptSegment, VideoMetadata, VideoSearchResult, WhisperTranscript
+from .models import Transcript, TranscriptSegment, VideoMetadata, VideoSearchResult
 from .sarvam import SarvamTranscriber
 from .transcript import TranscriptFetcher
 from .whisper import WhisperTranscriber
@@ -60,33 +61,38 @@ def search_videos(
 
 
 @mcp.tool()
-def transcribe_video(video_id: str, language: str | None = None) -> WhisperTranscript:
-    """Download audio and transcribe a YouTube video using local Whisper model.
-
-    Works even when YouTube captions are unavailable. Runs entirely on-machine — no API key required.
-
-    Args:
-        video_id: YouTube video ID.
-        language: BCP-47 language code hint (e.g. 'en', 'fr'). Auto-detected if omitted.
-    """
-    return _whisper.transcribe(video_id, language)
-
-
-@mcp.tool()
-def transcribe_video_sarvam(video_id: str, language: str | None = None) -> SarvamTranscript:
-    """Download audio and transcribe a YouTube video using Sarvam AI's Saaras API.
-
-    Alternative to the local Whisper-based transcribe_video — strong for Indian languages.
-    Requires SARVAM_API_KEY to be set. The synchronous Saaras API caps audio at 30 seconds —
-    longer videos will fail; use transcribe_video (Whisper) for those instead.
+def transcribe_video(
+    video_id: str,
+    language: str | None = None,
+    provider: Literal["whisper", "sarvam"] = "whisper",
+) -> Transcript:
+    """Download audio and transcribe a YouTube video. Works even when YouTube captions are unavailable.
 
     Args:
         video_id: YouTube video ID.
-        language: BCP-47 language code hint (e.g. 'hi', 'en'). Auto-detected if omitted.
+        language: BCP-47 language code hint (e.g. 'en', 'hi'). Auto-detected if omitted.
+        provider: "whisper" (default) runs locally, no API key required. "sarvam" uses
+            Sarvam AI's Saaras API — strong for Indian languages, requires SARVAM_API_KEY,
+            and caps audio at 30 seconds (use "whisper" for longer videos).
     """
-    if _sarvam is None:
-        raise RuntimeError("SARVAM_API_KEY not set — copy .env.example to .env and add your key")
-    return _sarvam.transcribe(video_id, language)
+    if provider == "sarvam":
+        if _sarvam is None:
+            raise RuntimeError("SARVAM_API_KEY not set — copy .env.example to .env and add your key")
+        result = _sarvam.transcribe(video_id, language)
+        return Transcript(
+            video_id=result.video_id,
+            provider="sarvam",
+            text=result.text,
+            language_code=result.language_code,
+        )
+
+    result = _whisper.transcribe(video_id, language)
+    return Transcript(
+        video_id=result.video_id,
+        provider="whisper",
+        text=result.text,
+        segments=result.segments,
+    )
 
 
 if __name__ == "__main__":
