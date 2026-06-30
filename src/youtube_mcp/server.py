@@ -1,10 +1,12 @@
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 from .api import YouTubeAPI
-from .models import TranscriptSegment, VideoMetadata, VideoSearchResult, WhisperTranscript
+from .models import Transcript, TranscriptSegment, VideoMetadata, VideoSearchResult
+from .sarvam import SarvamTranscriber
 from .transcript import TranscriptFetcher
 from .whisper import WhisperTranscriber
 
@@ -17,6 +19,8 @@ if not _api_key:
 _youtube = YouTubeAPI(_api_key)
 _transcript = TranscriptFetcher()
 _whisper = WhisperTranscriber("base")
+_sarvam_api_key = os.environ.get("SARVAM_API_KEY")
+_sarvam = SarvamTranscriber(_sarvam_api_key) if _sarvam_api_key else None
 
 mcp = FastMCP("youtube")
 
@@ -57,16 +61,39 @@ def search_videos(
 
 
 @mcp.tool()
-def transcribe_video(video_id: str, language: str | None = None) -> WhisperTranscript:
-    """Download audio and transcribe a YouTube video using local Whisper model.
-
-    Works even when YouTube captions are unavailable. Runs entirely on-machine — no API key required.
+def transcribe_video(
+    video_id: str,
+    language: str | None = None,
+    provider: Literal["whisper", "sarvam"] = "whisper",
+) -> Transcript:
+    """Download audio and transcribe a YouTube video. Works even when YouTube captions are unavailable.
 
     Args:
         video_id: YouTube video ID.
-        language: BCP-47 language code hint (e.g. 'en', 'fr'). Auto-detected if omitted.
+        language: BCP-47 language code hint (e.g. 'en', 'hi'). Auto-detected if omitted.
+        provider: "whisper" (default) runs locally, no API key required. "sarvam" uses
+            Sarvam AI's Saaras API — strong for Indian languages, requires SARVAM_API_KEY,
+            and caps audio at 30 seconds (use "whisper" for longer videos).
     """
-    return _whisper.transcribe(video_id, language)
+    if provider == "sarvam":
+        if _sarvam is None:
+            raise RuntimeError("SARVAM_API_KEY not set — copy .env.example to .env and add your key")
+        result = _sarvam.transcribe(video_id, language)
+        return Transcript(
+            video_id=result.video_id,
+            provider="sarvam",
+            text=result.text,
+            language_code=result.language_code,
+        )
+
+    result = _whisper.transcribe(video_id, language)
+    return Transcript(
+        video_id=result.video_id,
+        provider="whisper",
+        text=result.text,
+        segments=result.segments,
+        language_code=result.language_code,
+    )
 
 
 if __name__ == "__main__":

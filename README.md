@@ -7,7 +7,7 @@ MCP server for YouTube. Exposes four tools to any MCP client (Claude Desktop, et
 | `get_video` | Fetch video metadata (title, views, duration, etc.) |
 | `get_transcript` | Fetch timestamped caption segments (YouTube captions) |
 | `search_videos` | Search YouTube by keyword, ordered by date or relevance |
-| `transcribe_video` | Download audio and transcribe locally using Whisper — works when captions are unavailable, no extra API keys |
+| `transcribe_video` | Download audio and transcribe it — works when captions are unavailable. Defaults to local Whisper (no API key); pass `provider="sarvam"` to use Sarvam AI's Saaras API instead (`SARVAM_API_KEY` required) |
 
 > **Zero system dependencies.** `ffmpeg` is bundled via `static-ffmpeg` and downloaded automatically on first use. No Homebrew, no manual installs.
 
@@ -33,6 +33,7 @@ pip install -e ".[dev]"
 ```bash
 cp .env.example .env
 # edit .env and paste your YOUTUBE_API_KEY
+# optionally add SARVAM_API_KEY to enable provider="sarvam" in transcribe_video
 ```
 
 ### 4. Run tests
@@ -65,6 +66,7 @@ Restart Claude Desktop. You can then ask things like:
 > "Search the latest YouTube videos about Ram Mandir fund scam and summarise them"  
 > "Get the transcript for video dQw4w9WgXcQ"  
 > "Transcribe this video even though it has no captions: ..."  
+> "Transcribe this short Hindi clip using Sarvam: ..."  
 > "What is the view count and duration of this YouTube video?"
 
 ## First-run notes
@@ -123,15 +125,22 @@ Searches YouTube via the Data API v3. Returns newest-first by default.
 
 ---
 
-### `transcribe_video(video_id: str, language: str | None = None) -> WhisperTranscript`
+### `transcribe_video(video_id: str, language: str | None = None, provider: Literal["whisper", "sarvam"] = "whisper") -> Transcript`
 
-Downloads audio and transcribes locally using OpenAI Whisper (`base` model). No API key required.
+Downloads audio and transcribes it. Works even when YouTube captions are unavailable.
+
+- `provider="whisper"` (default): runs locally via OpenAI Whisper (`base` model). No API key required.
+- `provider="sarvam"`: uses Sarvam AI's Saaras speech-to-text API — strong for Indian languages. Requires `SARVAM_API_KEY`.
+
+> **Sarvam 30-second limit.** Sarvam's synchronous Saaras API only accepts audio up to 30 seconds — longer videos return a 400 error. Use the default `provider="whisper"` for anything longer.
 
 | Field | Type | Description |
 |---|---|---|
 | `video_id` | str | YouTube video ID |
+| `provider` | str | Which backend produced this transcript (`"whisper"` or `"sarvam"`) |
 | `text` | str | Full transcript text |
-| `segments` | list[WhisperSegment] | Timestamped segments |
+| `segments` | list[WhisperSegment] \| None | Timestamped segments — only available from Whisper; `None` for Sarvam, which doesn't return per-segment timing |
+| `language_code` | str \| None | Detected language code — populated by both providers |
 
 Each `WhisperSegment`:
 
@@ -141,7 +150,7 @@ Each `WhisperSegment`:
 | `end` | float | Segment end time (seconds) |
 | `text` | str | Transcribed text |
 
-`language`: BCP-47 hint for Whisper (e.g. `"en"`, `"hi"`). Auto-detected if omitted.
+`language`: BCP-47 hint (e.g. `"en"`, `"hi"`). Auto-detected if omitted.
 
 ---
 
@@ -152,10 +161,12 @@ src/youtube_mcp/
   server.py       # MCP entry point, tool registry
   api.py          # YouTube Data API v3 wrapper (get_video, search_videos)
   transcript.py   # youtube-transcript-api wrapper (get_transcript)
-  whisper.py      # yt-dlp + local Whisper transcriber (transcribe_video)
+  whisper.py      # yt-dlp + local Whisper transcriber (transcribe_video, provider="whisper")
+  sarvam.py       # yt-dlp + Sarvam Saaras API transcriber (transcribe_video, provider="sarvam")
   models.py       # Pydantic models
 tests/
   test_api.py
   test_transcript.py
   test_whisper.py
+  test_sarvam.py
 ```

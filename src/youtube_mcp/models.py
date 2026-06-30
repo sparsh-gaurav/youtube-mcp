@@ -38,3 +38,18 @@ class WhisperTranscript(BaseModel):
     video_id: str
     text: str
     segments: list[WhisperSegment]
+    language_code: str | None = None
+
+
+class SarvamTranscript(BaseModel):
+    video_id: str
+    text: str
+    language_code: str | None = None
+
+
+class Transcript(BaseModel):
+    video_id: str
+    provider: str
+    text: str
+    segments: list[WhisperSegment] | None = None
+    language_code: str | None = None

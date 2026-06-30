@@ -9,11 +9,11 @@ _FAKE_AUDIO = "/tmp/fake_dir/audio.webm"
 _FAKE_DIR = "/tmp/fake_dir"
 
 
-def _make_model(text="Hello world", segments=None):
+def _make_model(text="Hello world", segments=None, language="en"):
     if segments is None:
         segments = [{"start": 0.0, "end": 2.5, "text": "Hello world"}]
     model = MagicMock()
-    model.transcribe.return_value = {"text": text, "segments": segments}
+    model.transcribe.return_value = {"text": text, "segments": segments, "language": language}
     return model
 
 
@@ -51,6 +51,7 @@ def test_transcribe_happy_path(transcriber, mocker):
     assert isinstance(result.segments[0], WhisperSegment)
     assert result.segments[0].start == 0.0
     assert result.segments[0].end == 2.5
+    assert result.language_code == "en"
 
 
 def test_transcribe_language_forwarded(mocker):
